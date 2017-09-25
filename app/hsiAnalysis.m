@@ -1,8 +1,4 @@
 function [ Y, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] = hsiAnalysis(CUBE)
-
-    addpath('..\functions\');
-    addpath('..\data\');
-    
     img = hsiGetImageLayer(CUBE, 50);
     disp('Convertendo HSI em Matriz ...');    
     X = hsi2matrix(CUBE);

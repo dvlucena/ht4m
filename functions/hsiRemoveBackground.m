@@ -1,7 +1,7 @@
-function [Y] = hsiRemoveBackground( X, excludeIndex )
+function [Y] = hsiRemoveBackground(X)
     
     %PCA
-    [Xcoeff,Xscore, Xlatent, Xtsquared, Xexplained, mu] = pca(X);
+    [Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] = pca(X);
     
     pcs = 1;
     while (sum(Xexplained(1:pcs,1)) < 95)
