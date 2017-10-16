@@ -12,12 +12,12 @@ function [ INDEX, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] 
         disp('Apresentando layer 50 ...');    
         figure;
         imshow(img);
-        opt = input('Deseja aplicar a remoÃ§Ã£o de fundo? 1 - Sim, 2 - NÃ£o -> ');
+        opt = input('Deseja aplicar a remoção de fundo? 1 - Sim, 2 - Não -> ');
         if (opt == 1)
             disp('Executando PCA e K-Means para separar fundo e amostra...');        
             INDEX(INDEX~=0) = hsiRemoveBackground(MATRIZ_X(INDEX~=0,:));
 
-            %Centrar na mÃ©dia
+            %Centrar na média
             MATRIZ_X = MATRIZ_X - repmat(mean(MATRIZ_X), size(MATRIZ_X,1), 1);
 
             img1 = showClusterOnImage(img, INDEX, 1, 0, 0, 255); 
