@@ -1,34 +1,36 @@
-function [ Y, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] = hsiAnalysis(CUBE)
+function [ INDEX, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] = hsiAnalysis(CUBE)
+
+    addpath('..\functions\');
+    addpath('..\data\');
+    
     img = hsiGetImageLayer(CUBE, 50);
     disp('Convertendo HSI em Matriz ...');    
-    X = hsi2matrix(CUBE);
-    Y = ones(1,size(X,1));
+    MATRIZ_X = hsi2matrix(CUBE);
+    INDEX = ones(1,size(MATRIZ_X,1));
     opt = 1;
     while opt == 1
         disp('Apresentando layer 50 ...');    
         figure;
         imshow(img);
-        opt = input('Deseja aplicar a remoção de fundo? 1 - Sim, 2 - Não -> ');
+        opt = input('Deseja aplicar a remoÃ§Ã£o de fundo? 1 - Sim, 2 - NÃ£o -> ');
         if (opt == 1)
             disp('Executando PCA e K-Means para separar fundo e amostra...');        
-            Y(Y~=0) = hsiRemoveBackground(X(Y~=0,:));
+            INDEX(INDEX~=0) = hsiRemoveBackground(MATRIZ_X(INDEX~=0,:));
 
-            %Centrar na média
-            X = X - repmat(mean(X), size(X,1), 1);
+            %Centrar na mÃ©dia
+            MATRIZ_X = MATRIZ_X - repmat(mean(MATRIZ_X), size(MATRIZ_X,1), 1);
 
-            img1 = showClusterOnImage(img, Y, 1, 0, 0, 255); 
-            img2 = showClusterOnImage(img, Y, 2, 0, 255, 0);
+            img1 = showClusterOnImage(img, INDEX, 1, 0, 0, 255); 
+            img2 = showClusterOnImage(img, INDEX, 2, 0, 255, 0);
 
             amostra = input('Qual imagem representa o cluster com amostra? (1 ou 2) -> ');
 
             if (amostra == 1)
-                img_fundo = img2;                
+                img = img2;                
             else
-                img_fundo = img1;
-            end
-            
-            img = img_fundo;
-            Y(Y~=amostra) = 0;        
+                img = img1;
+            end            
+            INDEX(INDEX~=amostra) = 0;        
         end
         close all;
     end
@@ -38,7 +40,7 @@ function [ Y, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] = hs
     
     %PCA
     disp('Executando PCA ...');    
-    [Xcoeff,Xscore, Xlatent, Xtsquared, Xexplained, mu] = pca(X(Y~=0,:));
+    [Xcoeff,Xscore, Xlatent, Xtsquared, Xexplained, mu] = pca(MATRIZ_X(INDEX~=0,:));
     
     pcs = 1;
     while (sum(Xexplained(1:pcs,1)) < 95)
@@ -46,10 +48,10 @@ function [ Y, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] = hs
     end
     
     disp(strcat('Executando K-Means usando 0',int2str(pcs),' pc(s)'));    
-    Y(Y ~= 0) = getClusters( Xscore, pcs, k );
+    INDEX(INDEX ~= 0) = getClusters( Xscore, pcs, k );
     
     for i=1:k
-       showClusterOnImage(img_fundo, Y, i, 255, 0, 0); 
+       showClusterOnImage(img, INDEX, i, 255, 0, 0); 
     end   
     
 end
