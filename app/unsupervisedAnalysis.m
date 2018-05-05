@@ -1,4 +1,4 @@
-function [ INDEX, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] = hsiAnalysis(HSI, Y, img, path, bgRemove, clusters, sample_cluster)   
+function [Ylabels, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] = unsupervisedAnalysis(HSI, Ylabels, path, bgRemove, clusters, sample_cluster, autosave)   
 
     %configuração dos diretórios do toolbox
     addpath('..\functions\');
@@ -8,37 +8,42 @@ function [ INDEX, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] 
     %arquivos resultantes da análise.
     if (~exist('path','var') || isempty(path))
         path = input('Digite o caminho da pasta de trabalho ou pressione ENTER continuar: ','s');
-    end
-    
-    % evitar erro por não inserir o caminho.
-    if isempty(path)
-        path = 'C:\';
-        disp('Caminho: C:\');
-    end
-    
-    %verificação do parâmetro 'img'.
-    if (~exist('img','var') || isempty(img))
-        img = hsiGetImageLayer(HSI, 50);
-    end
-    
-    %armazendando imagem original
-    if ~isempty(path)
-        imwrite(img,strcat(path,'hsi_original.png'));
+        
+        % evitar erro por não inserir o caminho.
+        if isempty(path)
+            path = pwd;
+        end
     end
     
     %conversão da HSI em matriz bidimensional
     disp('Convertendo HSI em Matriz ...');
     MATRIZ_X = hsi2matrix(HSI);
     
-    %verificação da existência da variável de referência Y
-    if (~exist('Y','var') && ~isempty(Y))
-        INDEX = ones(1,size(MATRIZ_X,1));
-    else
-        if (size(Y,2) == size(MATRIZ_X,1))
-            INDEX = Y;
+    %verificação da existência da variável de referência Ylabels
+    if (exist('Ylabels','var') && ~isempty(Ylabels))    
+        if (~isvector(Ylabels) && ismatrix(Ylabels))
+            if (size(Ylabels,1) == size(HSI,1) && size(Ylabels,2) == size(HSI,2))
+                LABELS = matrix2vector(Ylabels);
+                LABELS = LABELS';
+            else
+                LABELS = ones(1,size(MATRIZ_X,1));
+            end
         else
-            INDEX = ones(1,size(MATRIZ_X,1));
-        end            
+            error('A variável "Ylabels" deve possuir 2 dimensões.');
+        end        
+    else
+        LABELS = ones(1,size(MATRIZ_X,1));
+    end
+    
+%     %verificação do parâmetro 'img'.
+%     if (~exist('img','var') || isempty(img))
+%         img = getImage(HSI, Ylabels, 50);
+%     end
+    img = getImage(HSI, Ylabels, 50);
+    
+    %armazendando imagem original
+    if ~isempty(path)
+        imwrite(img,strcat(path,'hsi_original.png'));
     end
     
     if ~exist('bgRemove','var')
@@ -71,13 +76,13 @@ function [ INDEX, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] 
         if (opt == 1)
             exec = exec + 1;
             disp('Executando PCA e K-Means para separar fundo e amostra...');        
-            INDEX(INDEX~=0) = hsiRemoveBackground(MATRIZ_X(INDEX~=0,:));
+            LABELS(LABELS~=0) = hsiRemoveBackground(MATRIZ_X(LABELS~=0,:));
 
             %Centrar na média
             MATRIZ_X = MATRIZ_X - repmat(mean(MATRIZ_X), size(MATRIZ_X,1), 1);
 
-            img1 = showClusterOnImage(img, INDEX, 1, 0, 0, 255); 
-            img2 = showClusterOnImage(img, INDEX, 2, 0, 255, 0);
+            img1 = showCluster(img, LABELS, 1, 0, 0, 255); 
+            img2 = showCluster(img, LABELS, 2, 0, 255, 0);
             
             if (~exist('sample_cluster','var') || isempty(sample_cluster))
                 amostra = input('Qual imagem representa o cluster com amostra? (1 ou 2) -> ');
@@ -94,7 +99,7 @@ function [ INDEX, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] 
             else
                 img = img1;
             end            
-            INDEX(INDEX~=amostra) = 0;        
+            LABELS(LABELS~=amostra) = 0;        
         end
         close all;
     end
@@ -118,7 +123,7 @@ function [ INDEX, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] 
     
     %PCA
     disp('Executando PCA ...');    
-    [Xcoeff,Xscore, Xlatent, Xtsquared, Xexplained, mu] = pca(MATRIZ_X(INDEX~=0,:));
+    [Xcoeff,Xscore, Xlatent, Xtsquared, Xexplained, mu] = pca(MATRIZ_X(LABELS~=0,:));
     
     pcs = 1;
     while (sum(Xexplained(1:pcs,1)) < 95)
@@ -126,19 +131,20 @@ function [ INDEX, img, pcs, Xcoeff, Xscore, Xlatent, Xtsquared, Xexplained, mu] 
     end
     
     disp(strcat('Executando K-Means usando 0',int2str(pcs),' pc(s)'));    
-    INDEX(INDEX ~= 0) = getClusters( Xscore, pcs, k );
+    LABELS(LABELS ~= 0) = getClusters( Xscore, pcs, k );
     
     for i=1:k
-       [gray_image, rgb_image] = showClusterOnImage(img, INDEX, i, 255, 0, 0); 
+       [gray_image, rgb_image] = showCluster(img, LABELS, i, 255, 0, 0); 
        if isempty(path) == 0
             imwrite(rgb_image,strcat(path,'hsi_cluster_',num2str(i),'.png'));
         end
     end       
     
     disp('Armazenando Variáveis... Aguarde!');        
-    Y = INDEX;
-    X = MATRIZ_X;
-    save(strcat(path,'hsiAnalysis.mat'), 'HSI', 'X', 'Y', 'img', 'pcs', 'Xcoeff', 'Xscore', 'Xlatent', 'Xtsquared', 'Xexplained', 'mu');
+    Ylabels = vector2matrix(LABELS, size(HSI,2));
+    if (exist('autosave','var') && autosave == 1)
+        save(strcat(path,'unsupervisedAnalysis.mat'), 'HSI', 'Ylabels', 'pcs', 'Xcoeff', 'Xscore', 'Xlatent', 'Xtsquared', 'Xexplained', 'mu');
+    end
     
     close all;
     disp('Finalizado!');    
